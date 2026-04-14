@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  GitSync-enabled CloudFormation template that creates IAM users,
+  groups, permissions, and a shared temporary password in Secrets Manager.
+
+Resources:
+
+  # -----------------------------------------------
+  # 1. Auto-generated One-Time Password in Secrets Manager
+  # -----------------------------------------------
+  IAMTemporaryPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: iam-user-temp-password
+      Description: Auto-generated temporary password for all IAM users
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "iam-shared"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+        RequireEachIncludedType: true
+
+  # -----------------------------------------------
+  # 2. S3 User Group + Policy
+  # -----------------------------------------------
+  S3UserGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: S3UserGroup
+
+  S3GroupPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: S3GroupPermissions
+      Groups:
+        - !Ref S3UserGroup
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:GetBucketLocation
+            Resource: '*'
+
+  # -----------------------------------------------
+  # 3. EC2 User Group + Policy
+  # -----------------------------------------------
+  EC2UserGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: EC2UserGroup
+
+  EC2GroupPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EC2GroupPermissions
+      Groups:
+        - !Ref EC2UserGroup
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeRegions
+              - ec2:RunInstances        # Allows ec2-user2 to create EC2 instances
+              - ec2:StartInstances
+              - ec2:StopInstances
+            Resource: '*'
+
+  # -----------------------------------------------
+  # 4. IAM Users
+  # -----------------------------------------------
+  EC2User1:
+    Type: AWS::IAM::User
+    DependsOn: IAMTemporaryPassword
+    Properties:
+      UserName: ec2-user1
+      Groups:
+        - !Ref EC2UserGroup
+      LoginProfile:
+        Password: !Sub
+          - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
+          - SecretId: !Ref IAMTemporaryPassword
+        PasswordResetRequired: true
+
+  EC2User2:
+    Type: AWS::IAM::User
+    DependsOn: IAMTemporaryPassword
+    Properties:
+      UserName: ec2-user2
+      Groups:
+        - !Ref EC2UserGroup
+      LoginProfile:
+        Password: !Sub
+          - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
+          - SecretId: !Ref IAMTemporaryPassword
+        PasswordResetRequired: true
+
+  S3User:
+    Type: AWS::IAM::User
+    DependsOn: IAMTemporaryPassword
+    Properties:
+      UserName: s3-user
+      Groups:
+        - !Ref S3UserGroup
+      LoginProfile:
+        Password: !Sub
+          - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
+          - SecretId: !Ref IAMTemporaryPassword
+        PasswordResetRequired: true
+
+# -----------------------------------------------
+# Outputs
+# -----------------------------------------------
+Outputs:
+  TemporaryPasswordSecretARN:
+    Description: ARN of the Secrets Manager secret storing the temporary password
+    Value: !Ref IAMTemporaryPassword
+
+  S3UserGroupName:
+    Value: !Ref S3UserGroup
+
+  EC2UserGroupName:
+    Value: !Ref EC2UserGroup
