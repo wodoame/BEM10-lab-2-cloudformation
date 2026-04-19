@@ -5,9 +5,6 @@ Description: >
 
 Resources:
 
-  # -----------------------------------------------
-  # 1. Auto-generated One-Time Password in Secrets Manager
-  # -----------------------------------------------
   IAMTemporaryPassword:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -20,60 +17,20 @@ Resources:
         ExcludeCharacters: '"@/\'
         RequireEachIncludedType: true
 
-  # -----------------------------------------------
-  # 2. S3 User Group + Policy
-  # -----------------------------------------------
   S3UserGroup:
     Type: AWS::IAM::Group
     Properties:
       GroupName: S3UserGroup
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
-  S3GroupPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: S3GroupPermissions
-      Groups:
-        - !Ref S3UserGroup
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action:
-              - s3:ListAllMyBuckets
-              - s3:ListBucket
-              - s3:GetBucketLocation
-            Resource: '*'
-
-  # -----------------------------------------------
-  # 3. EC2 User Group + Policy
-  # -----------------------------------------------
   EC2UserGroup:
     Type: AWS::IAM::Group
     Properties:
       GroupName: EC2UserGroup
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
 
-  EC2GroupPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: EC2GroupPermissions
-      Groups:
-        - !Ref EC2UserGroup
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action:
-              - ec2:DescribeInstances
-              - ec2:DescribeInstanceTypes
-              - ec2:DescribeRegions
-              - ec2:RunInstances        # Allows ec2-user2 to create EC2 instances
-              - ec2:StartInstances
-              - ec2:StopInstances
-            Resource: '*'
-
-  # -----------------------------------------------
-  # 4. IAM Users
-  # -----------------------------------------------
   EC2User1:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
@@ -100,6 +57,19 @@ Resources:
           - SecretId: !Ref IAMTemporaryPassword
         PasswordResetRequired: true
 
+  EC2User2DenyRunInstances:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: DenyRunInstances
+      Users:
+        - !Ref EC2User2
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Action: ec2:RunInstances
+            Resource: '*'
+
   S3User:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
@@ -113,9 +83,6 @@ Resources:
           - SecretId: !Ref IAMTemporaryPassword
         PasswordResetRequired: true
 
-# -----------------------------------------------
-# Outputs
-# -----------------------------------------------
 Outputs:
   TemporaryPasswordSecretARN:
     Description: ARN of the Secrets Manager secret storing the temporary password
