@@ -1,3 +1,4 @@
 template-file-path: templates/iam-setup.yaml
-parameters: {}
+parameters:
+  Prefix: bw
 tags: {}

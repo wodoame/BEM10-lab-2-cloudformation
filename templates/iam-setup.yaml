@@ -3,6 +3,11 @@ Description: >
   GitSync-enabled CloudFormation template that creates IAM users,
   groups, permissions, and a shared temporary password in Secrets Manager.
 
+Parameters:
+  Prefix:
+    Type: String
+    Description: Short prefix to avoid username collisions (e.g. your initials)
+
 Resources:
 
   IAMTemporaryPassword:
@@ -35,7 +40,7 @@ Resources:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
     Properties:
-      UserName: ec2-user1
+      UserName: !Sub "${Prefix}-ec2-user1"
       Groups:
         - !Ref EC2UserGroup
       LoginProfile:
@@ -48,7 +53,7 @@ Resources:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
     Properties:
-      UserName: ec2-user2
+      UserName: !Sub "${Prefix}-ec2-user2"
       Groups:
         - !Ref EC2UserGroup
       LoginProfile:
@@ -74,7 +79,7 @@ Resources:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
     Properties:
-      UserName: s3-user
+      UserName: !Sub "${Prefix}-s3-user"
       Groups:
         - !Ref S3UserGroup
       LoginProfile:
