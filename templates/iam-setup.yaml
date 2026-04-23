@@ -87,6 +87,19 @@ Resources:
           - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
           - SecretId: !Ref IAMTemporaryPassword
         PasswordResetRequired: true
+  
+  S3User2:
+    Type: AWS::IAM::User
+    DependsOn: IAMTemporaryPassword
+    Properties:
+      UserName: !Sub "${Prefix}-s3-user-2"
+      Groups:
+        - !Ref S3UserGroup
+      LoginProfile:
+        Password: !Sub
+          - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
+          - SecretId: !Ref IAMTemporaryPassword
+        PasswordResetRequired: true
 
 Outputs:
   TemporaryPasswordSecretARN:
