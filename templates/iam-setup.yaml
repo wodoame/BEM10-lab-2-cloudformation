@@ -49,6 +49,18 @@ Resources:
           - SecretId: !Ref IAMTemporaryPassword
         PasswordResetRequired: true
 
+  EC2User2PermissionBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: EC2NoRunInstancesBoundary
+      Description: Permission boundary that prevents ec2:RunInstances from being exercised
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            NotAction: ec2:RunInstances
+            Resource: '*'
+
   EC2User2:
     Type: AWS::IAM::User
     DependsOn: IAMTemporaryPassword
@@ -56,24 +68,12 @@ Resources:
       UserName: !Sub "${Prefix}-ec2-user2"
       Groups:
         - !Ref EC2UserGroup
+      PermissionsBoundary: !Ref EC2User2PermissionBoundary
       LoginProfile:
         Password: !Sub
           - '{{resolve:secretsmanager:${SecretId}:SecretString:password}}'
           - SecretId: !Ref IAMTemporaryPassword
         PasswordResetRequired: true
-
-  EC2User2DenyRunInstances:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: DenyRunInstances
-      Users:
-        - !Ref EC2User2
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Deny
-            Action: ec2:RunInstances
-            Resource: '*'
 
   S3User:
     Type: AWS::IAM::User
